@@ -430,7 +430,19 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     @media (max-width: 900px) {
-      .float-el { display: none; }
+      .f-xs      { width: 84px;  height: 63px; }
+      .f-md      { width: 155px; height: 124px; }
+      .f-md-tall { width: 165px; height: 145px; }
+      .f-lg      { width: 165px; height: 165px; }
+      .f-xl      { width: 208px; height: 208px; }
+    }
+    @media (max-width: 600px) {
+      .f-xs      { width: 68px;  height: 51px; }
+      .f-md      { display: none; }
+      .f-md-tall { width: 76px;  height: 66px; }
+      .f-lg      { display: none; }
+      .f-xl      { display: none; }
+      .float-img { box-shadow: 0 6px 18px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06); border-radius: 10px; }
     }
 
     /* ═══════════════════════════════════════════
@@ -1718,10 +1730,12 @@
       /* Annotation cards */
       .anno-card { display: none; }
 
-      /* Tablet scroll */
-      .tablet-scroll-wrapper { height: 250vh; }
-      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; }
+      /* Tablet scroll — disable scroll lock on mobile, show static frame */
+      .tablet-scroll-wrapper { height: auto; }
+      .tablet-scroll-sticky { position: static; height: auto; padding: 60px 20px; }
+      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; transform: none !important; }
       .tablet-card-inner { border-radius: 12px; }
+      .tablet-scroll-header { transform: none !important; }
 
       /* Services — 1 col on mobile */
       .services-grid { grid-template-columns: 1fr; gap: 16px; }
@@ -3154,6 +3168,26 @@ window.addEventListener('scroll', function() {
   const loaderBar = document.getElementById('loaderBar');
 
   if (!wrapper || !card) return;
+
+  /* Mobile: no scroll animation — just show first frame statically */
+  if (window.innerWidth <= 600) {
+    video.pause();
+    video.addEventListener('play', function() { video.pause(); });
+    video.addEventListener('canplay', function() { if (ph) ph.style.display = 'none'; });
+    video.addEventListener('loadedmetadata', function() {
+      if (ph) ph.style.display = 'none';
+      try { video.currentTime = 0; } catch(e) {}
+    });
+    if (video.readyState >= 2 && ph) ph.style.display = 'none';
+    if (loaderBar) loaderBar.style.width = '100%';
+    setTimeout(function() {
+      if (!loader) return;
+      loader.style.opacity = '0';
+      loader.style.transition = 'opacity 0.7s ease';
+      setTimeout(function() { loader.style.display = 'none'; }, 700);
+    }, 600);
+    return;
+  }
 
   let rafPending = false;
   let lastProgress = -1;
