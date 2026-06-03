@@ -540,6 +540,19 @@
       color: rgba(201,169,110,0.35);
     }
 
+    /* Tablet reveal animation (IntersectionObserver — mobile only) */
+    @keyframes tabletReveal {
+      from { transform: perspective(800px) rotateX(22deg) scale(0.75); opacity: 0.5; }
+      to   { transform: perspective(800px) rotateX(0deg) scale(1); opacity: 1; }
+    }
+    .tablet-card.tablet-revealed {
+      animation: tabletReveal 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .tablet-scroll-header.tablet-header-revealed {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
     /* Annotation cards */
     .anno-card {
       position: absolute;
@@ -1735,9 +1748,11 @@
       /* Annotation cards */
       .anno-card { display: none; }
 
-      /* Tablet scroll — short scroll zone on mobile (video doesn't scrub, just tilt anim) */
-      .tablet-scroll-wrapper { height: 130vh; }
-      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; }
+      /* Tablet scroll — IntersectionObserver on mobile, no sticky scroll lock */
+      .tablet-scroll-wrapper { height: auto; }
+      .tablet-scroll-sticky { position: static; height: auto; padding: 60px 16px; }
+      .tablet-scroll-header { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; opacity: 0.5; }
       .tablet-card-inner { border-radius: 12px; }
 
       /* Services — 1 col on mobile */
@@ -3172,10 +3187,7 @@ window.addEventListener('scroll', function() {
 
   if (!wrapper || !card) return;
 
-  var isMobileScrollOnly = window.innerWidth <= 600;
-
-  let rafPending = false;
-  let lastProgress = -1;
+  var isMobile = window.innerWidth <= 600;
 
   /* Keep video paused so we can scrub it manually */
   video.pause();
@@ -3184,52 +3196,64 @@ window.addEventListener('scroll', function() {
   video.addEventListener('error',   function() { if (ph) ph.style.display = 'flex'; });
 
   function scrubVideo(progress) {
-    /* readyState 1 = HAVE_METADATA, 2+ = has frame data */
     if (video.readyState < 1) return;
     var dur = video.duration;
     if (!dur || !isFinite(dur)) return;
     var target = dur * progress;
-    /* Only seek if meaningful change — avoids redundant seeks */
     if (Math.abs(video.currentTime - target) > 0.015) {
       video.currentTime = target;
     }
   }
 
-  function onScroll() {
-    if (rafPending) return;
-    rafPending = true;
-    requestAnimationFrame(function() {
-      rafPending = false;
-      var rect       = wrapper.getBoundingClientRect();
-      var scrollable = wrapper.offsetHeight - window.innerHeight;
-      var scrolled   = -rect.top;
-      var progress   = Math.max(0, Math.min(1, scrolled / scrollable));
+  if (isMobile) {
+    /* ── MOBILE: IntersectionObserver, no sticky scroll lock ── */
+    card.style.transform = 'perspective(800px) rotateX(22deg) scale(0.75)';
 
-      var isMobile  = window.innerWidth <= 768;
-      var scaleFrom = isMobile ? 0.7  : 1.05;
-      var scaleTo   = isMobile ? 0.9  : 1.0;
-      var rotateX   = 20 * (1 - progress);
-      var scale     = scaleFrom + (scaleTo - scaleFrom) * progress;
-      var headerY   = -100 * progress;
+    var obs = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting) {
+        card.classList.add('tablet-revealed');
+        if (header) header.classList.add('tablet-header-revealed');
+        obs.disconnect();
+      }
+    }, { threshold: 0.25 });
+    obs.observe(card);
 
-      card.style.transform = 'perspective(800px) rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
-      if (header) header.style.transform = 'translateY(' + headerY.toFixed(1) + 'px)';
+  } else {
+    /* ── DESKTOP: scroll-driven animation ── */
+    var rafPending = false;
 
-      if (!isMobileScrollOnly) scrubVideo(progress);
-      updateAnnotations(progress);
+    function onScroll() {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(function() {
+        rafPending = false;
+        var rect       = wrapper.getBoundingClientRect();
+        var scrollable = wrapper.offsetHeight - window.innerHeight;
+        var scrolled   = -rect.top;
+        var progress   = Math.max(0, Math.min(1, scrolled / scrollable));
+
+        var rotateX = 20 * (1 - progress);
+        var scale   = 1.05 + (1.0 - 1.05) * progress;
+        var headerY = -100 * progress;
+
+        card.style.transform = 'perspective(800px) rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
+        if (header) header.style.transform = 'translateY(' + headerY.toFixed(1) + 'px)';
+
+        scrubVideo(progress);
+        updateAnnotations(progress);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    video.addEventListener('loadedmetadata', function() {
+      if (ph) ph.style.display = 'none';
+      scrubVideo(0);
+      onScroll();
     });
-  }
 
-  window.addEventListener('scroll', onScroll, { passive: true });
-
-  /* Fire once after metadata so first frame shows */
-  video.addEventListener('loadedmetadata', function() {
-    if (ph) ph.style.display = 'none';
-    scrubVideo(0);
     onScroll();
-  });
-
-  onScroll();
+  }
 
   /* Dismiss loader */
   if (loaderBar) loaderBar.style.width = '100%';
