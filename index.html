@@ -474,6 +474,7 @@
       flex-direction: column;
       align-items: center;
       perspective: 1000px;
+      transform-style: preserve-3d;
     }
     .tablet-scroll-header {
       text-align: center;
@@ -3211,7 +3212,7 @@ window.addEventListener('scroll', function() {
       var scale     = scaleFrom + (scaleTo - scaleFrom) * progress;
       var headerY   = -100 * progress;
 
-      card.style.transform = 'rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
+      card.style.transform = 'perspective(800px) rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
       if (header) header.style.transform = 'translateY(' + headerY.toFixed(1) + 'px)';
 
       if (!isMobileScrollOnly) scrubVideo(progress);
