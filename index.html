@@ -437,11 +437,15 @@
       .f-xl      { width: 208px; height: 208px; }
     }
     @media (max-width: 600px) {
-      .f-xs      { width: 68px;  height: 51px; }
-      .f-md      { display: none; }
-      .f-md-tall { width: 76px;  height: 66px; }
-      .f-lg      { display: none; }
-      .f-xl      { display: none; }
+      /* 4-corner layout: top-left, top-right, bottom-left, bottom-right */
+      .fe-2 { display: none; }                               /* hide overlap */
+      .fe-1 .float-img { width: 70px;  height: 52px; }      /* top-left */
+      .fe-4 { top: 12% !important; right: 2% !important; }  /* fix navbar overlap */
+      .fe-4 .float-img { width: 74px;  height: 64px; }      /* top-right */
+      .fe-3 { top: 72% !important; left: 3% !important; }   /* bottom-left */
+      .fe-3 .float-img { display: block; width: 72px; height: 72px; }
+      .fe-5 { top: 70% !important; right: 3% !important; }  /* bottom-right */
+      .fe-5 .float-img { display: block; width: 76px; height: 76px; }
       .float-img { box-shadow: 0 6px 18px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06); border-radius: 10px; }
     }
 
@@ -1730,12 +1734,10 @@
       /* Annotation cards */
       .anno-card { display: none; }
 
-      /* Tablet scroll — disable scroll lock on mobile, show static frame */
-      .tablet-scroll-wrapper { height: auto; }
-      .tablet-scroll-sticky { position: static; height: auto; padding: 60px 20px; }
-      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; transform: none !important; }
+      /* Tablet scroll — animation on mobile, video stays at frame 0 */
+      .tablet-scroll-wrapper { height: 250vh; }
+      .tablet-card { border-width: 2px; border-radius: 16px; padding: 4px; }
       .tablet-card-inner { border-radius: 12px; }
-      .tablet-scroll-header { transform: none !important; }
 
       /* Services — 1 col on mobile */
       .services-grid { grid-template-columns: 1fr; gap: 16px; }
@@ -1857,28 +1859,28 @@
 
   <!-- Floating parallax images — positions & depths match React component exactly -->
   <div class="floating-scene" id="floatingScene">
-    <!-- depth 0.5 | -3deg | top-[15%] left-[2%] -->
-    <div class="float-el" data-depth="0.5" data-rot="-3" style="top:15%;left:2%">
+    <!-- fe-1: top-left small -->
+    <div class="float-el fe-1" data-depth="0.5" data-rot="-3" style="top:15%;left:2%">
       <img src="https://images.unsplash.com/photo-1524230572899-a752b3835840?w=320&q=80&auto=format"
            class="float-img f-xs" alt="" loading="eager">
     </div>
-    <!-- depth 1 | -12deg | top-[0%] left-[8%] -->
-    <div class="float-el" data-depth="1" data-rot="-12" style="top:0%;left:8%">
+    <!-- fe-2: top-left mid (hidden on mobile) -->
+    <div class="float-el fe-2" data-depth="1" data-rot="-12" style="top:0%;left:8%">
       <img src="https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=600&q=80&auto=format"
            class="float-img f-md" alt="" loading="eager">
     </div>
-    <!-- depth 4 | -4deg | top-[80%] left-[6%] -->
-    <div class="float-el" data-depth="4" data-rot="-4" style="top:70%;left:4%">
+    <!-- fe-3: bottom-left -->
+    <div class="float-el fe-3" data-depth="4" data-rot="-4" style="top:70%;left:4%">
       <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=640&q=80&auto=format"
            class="float-img f-lg" alt="" loading="eager">
     </div>
-    <!-- depth 2 | +6deg | top-[0%] right-[5%] -->
-    <div class="float-el" data-depth="2" data-rot="6" style="top:0%;right:5%">
+    <!-- fe-4: top-right (repositioned on mobile away from navbar) -->
+    <div class="float-el fe-4" data-depth="2" data-rot="6" style="top:0%;right:5%">
       <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=640&q=80&auto=format"
            class="float-img f-md-tall" alt="" loading="eager">
     </div>
-    <!-- depth 1 | +19deg | top-[68%] right-[3%] -->
-    <div class="float-el" data-depth="1" data-rot="19" style="top:62%;right:3%">
+    <!-- fe-5: bottom-right -->
+    <div class="float-el fe-5" data-depth="1" data-rot="19" style="top:62%;right:3%">
       <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format"
            class="float-img f-xl" alt="" loading="eager">
     </div>
@@ -3169,25 +3171,7 @@ window.addEventListener('scroll', function() {
 
   if (!wrapper || !card) return;
 
-  /* Mobile: no scroll animation — just show first frame statically */
-  if (window.innerWidth <= 600) {
-    video.pause();
-    video.addEventListener('play', function() { video.pause(); });
-    video.addEventListener('canplay', function() { if (ph) ph.style.display = 'none'; });
-    video.addEventListener('loadedmetadata', function() {
-      if (ph) ph.style.display = 'none';
-      try { video.currentTime = 0; } catch(e) {}
-    });
-    if (video.readyState >= 2 && ph) ph.style.display = 'none';
-    if (loaderBar) loaderBar.style.width = '100%';
-    setTimeout(function() {
-      if (!loader) return;
-      loader.style.opacity = '0';
-      loader.style.transition = 'opacity 0.7s ease';
-      setTimeout(function() { loader.style.display = 'none'; }, 700);
-    }, 600);
-    return;
-  }
+  var isMobileScrollOnly = window.innerWidth <= 600;
 
   let rafPending = false;
   let lastProgress = -1;
@@ -3230,7 +3214,7 @@ window.addEventListener('scroll', function() {
       card.style.transform = 'rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
       if (header) header.style.transform = 'translateY(' + headerY.toFixed(1) + 'px)';
 
-      scrubVideo(progress);
+      if (!isMobileScrollOnly) scrubVideo(progress);
       updateAnnotations(progress);
     });
   }
