@@ -2787,7 +2787,7 @@
 
   if (!canvas || !ctx || !wrapper) return;
 
-  var FRAME_COUNT  = 120;
+  var FRAME_COUNT  = 828;
   var images       = new Array(FRAME_COUNT);
   var loadedCount  = 0;
   var currentFrame = -1;
@@ -2842,6 +2842,9 @@
     if (loaderBar) loaderBar.style.width = Math.round(pct * 90) + '%';
   }
 
+  var READY_THRESHOLD = 30; /* dismiss loader after first 30 frames */
+  var loaderDismissed = false;
+
   function loadFrames() {
     for (var i = 0; i < FRAME_COUNT; i++) {
       (function(idx) {
@@ -2858,16 +2861,31 @@
             }
           }
           updateLoaderBar(loadedCount / FRAME_COUNT);
-          if (loadedCount >= FRAME_COUNT) dismissLoader();
+          if (!loaderDismissed && loadedCount >= READY_THRESHOLD) {
+            loaderDismissed = true;
+            dismissLoader();
+          }
         };
         img.onerror = function() {
           loadedCount++;
-          updateLoaderBar(loadedCount / FRAME_COUNT);
-          if (loadedCount >= FRAME_COUNT) dismissLoader();
+          if (!loaderDismissed && loadedCount >= READY_THRESHOLD) {
+            loaderDismissed = true;
+            dismissLoader();
+          }
         };
         img.src = 'frames/frame_' + padNum(idx + 1, 4) + '.jpg';
       })(i);
     }
+  }
+
+  /* Find nearest loaded frame (handles gaps during background loading) */
+  function nearestLoadedFrame(idx) {
+    if (images[idx]) return idx;
+    for (var d = 1; d < 30; d++) {
+      if (idx - d >= 0 && images[idx - d]) return idx - d;
+      if (idx + d < FRAME_COUNT && images[idx + d]) return idx + d;
+    }
+    return -1;
   }
 
   function onScroll() {
@@ -2880,11 +2898,12 @@
       var scrolled   = -rect.top;
       var progress   = Math.max(0, Math.min(1, scrolled / scrollable));
 
-      /* Frame scrubbing */
-      var frameIdx = Math.min(FRAME_COUNT - 1, Math.floor(progress * FRAME_COUNT));
-      if (frameIdx !== currentFrame && images[frameIdx]) {
-        currentFrame = frameIdx;
-        drawFrame(frameIdx);
+      /* Frame scrubbing — fall back to nearest loaded frame if needed */
+      var frameIdx  = Math.min(FRAME_COUNT - 1, Math.floor(progress * FRAME_COUNT));
+      var drawIdx   = nearestLoadedFrame(frameIdx);
+      if (drawIdx >= 0 && drawIdx !== currentFrame) {
+        currentFrame = drawIdx;
+        drawFrame(drawIdx);
       }
 
       /* Progress fill */
